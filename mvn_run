@@ -1,0 +1,1 @@
+mvn clean package && java -jar target/mldino-java-1.0-SNAPSHOT-jar-with-dependencies.jar 
