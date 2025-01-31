@@ -451,11 +451,11 @@ public class Genome implements Comparable {
         try {
 
 
-            fw = new FileWriter(fileName+".txt");
+            fw = new FileWriter(fileName);
             bw = new BufferedWriter(fw);
             bw.write(builder.toString());
 
-            System.out.println("Done");
+            System.out.println("Writing High Score to save file successful");
 
         } catch (IOException e) {
 
@@ -487,12 +487,12 @@ public class Genome implements Comparable {
         FileReader fr = null;
 
         try {
-            fr = new FileReader(fileName + ".txt");
+            fr = new FileReader(fileName);
             br = new BufferedReader(fr);
 
             String currentLine;
             while ((currentLine = br.readLine()) != null) {
-                ConnectionGene conn = ConnectionGene.fromString(currentLine); // Assuming you have a fromString method to parse the ConnectionGene
+                ConnectionGene conn = ConnectionGene.fromString(currentLine);
                 connectionGeneList.add(conn);
             }
         } catch (IOException e) {

@@ -7,7 +7,9 @@ package com.evo.NEAT;
  */
 public class ConnectionGene {
 
-    private int into,out, innovation;
+    private int into;
+    private int out;
+    private int innovation;
     private float weight;
     private boolean enabled;
 
@@ -68,7 +70,6 @@ public class ConnectionGene {
                 ", weight=" + weight +
                 ", enabled=" + enabled +
                 '}';
-        //return into+","+out+","+weight+","+enabled;
     }
 
     public static ConnectionGene fromString(String str) {
