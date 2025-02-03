@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Neural Network Visualization</title>
+    <script src="js/d3.v7.min.js"></script>
+    <script src="js/umd.min.js"></script>
+    <style>
+        .node circle {
+            fill: #999;
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        .node text {
+            font: 10px sans-serif;
+            pointer-events: none;
+        }
+        .link {
+            fill: none;
+            stroke-width: 1.5px;
+        }
+        .legend {
+            font: 12px sans-serif;
+        }
+        #controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        #dropzone {
+            width: 300px;
+            height: 50px;
+            border: 2px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #aaa;
+            margin-right: 10px;
+        }
+        #dropzone.hover {
+            border-color: #666;
+            color: #666;
+        }
+        #saveButton {
+            padding: 10px 20px;
+            font-size: 14px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #saveButton:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div id="dropzone">Drag and drop your genome data file here</div>
+        <button id="saveButton">Save as Image</button>
+    </div>
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const saveButton = document.getElementById('saveButton');
+        const width = window.innerWidth;
+        const height = window.innerHeight - 100;
+        
+        
+        saveButton.addEventListener('click', () => {
+            const svg = document.querySelector('svg');
+            if (!svg) {
+                alert('No Neural Network to save');
+                return;
+            }
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(svg);
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'neural_network.svg';
+            link.click();
+        });
+
+        dropzone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropzone.classList.add('hover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('hover');
+        });
+
+        dropzone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropzone.classList.remove('hover');
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = parseData(e.target.result);
+                    visualizeData(data);
+                };
+                reader.readAsText(file);
+            }
+        });
+        
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight - 100;
+            d3.select("svg")
+                .attr("width", width)
+                .attr("height", height);
+        });
+
+        function parseData(text) {
+            const connections = text.split('\n').filter(line => line.trim() !== '');
+            const nodes = new Set();
+            const links = connections.map(line => {
+                const match = line.match(/ConnectionGene\{into=(\d+), out=(\d+), innovation=\d+, weight=([-+]?\d*\.\d+|\d+), enabled=(true|false)\}/);
+                if (match) {
+                    const into = parseInt(match[1]);
+                    const out = parseInt(match[2]);
+                    const weight = parseFloat(match[3]);
+                    const enabled = match[4] === 'true';
+                    nodes.add(into);
+                    nodes.add(out);
+                    return { source: into, target: out, weight, enabled };
+                }
+            }).filter(link => link);
+
+            const nodeList = Array.from(nodes).map(node => ({
+                id: node,
+                label: String(node),
+                color: node < 3 ? 'lightblue' : node >= 1000000 ? 'lightpink' : 'lightgreen'
+            }));
+
+            return { nodes: nodeList, links };
+        }
+
+        function visualizeData(graph) {
+            // Remove previous SVG if it exists
+            d3.select("svg").remove();
+
+            const svg = d3.select("body").append("svg")
+                .attr("width", "100%")
+                .attr("height", height)
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet");
+
+            // Pre-set positions for input and output nodes
+            graph.nodes.forEach(node => {
+                if (node.id < 3) {
+                    node.fx = 50; // Left for input neurons
+                    node.fy = height / 4 * (node.id + 1); // Spread vertically
+                } else if (node.id >= 1000000) {
+                    node.fx = width - 50; // Right for output neurons
+                    node.fy = height / 4 * ((node.id % 1000000) + 1); // Spread vertically
+                }
+            });
+
+            const simulation = d3.forceSimulation()
+                .force("link", d3.forceLink().id(d => d.id))
+                .force("charge", d3.forceManyBody().strength(20)) // Decrease repulsion
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("x", d3.forceX(width / 2).strength(0.1))
+                .force("y", d3.forceY(height / 2).strength(0.1))
+                .stop(); // Stop simulation after initial layout
+
+            const link = svg.append("g")
+                .attr("class", "links")
+                .selectAll("line")
+                .data(graph.links)
+                .enter().append("line")
+                .attr("stroke-width", d => Math.abs(d.weight) * 3) // Scale width based on weight
+                .attr("stroke", d => d.weight > 0 ? "green" : "red")
+                .attr("stroke-dasharray", d => d.enabled ? "0" : "5,5");
+
+            const node = svg.append("g")
+                .attr("class", "nodes")
+                .selectAll("g")
+                .data(graph.nodes)
+                .enter().append("g")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+
+            node.append("circle")
+                .attr("r", 16)
+                .attr("fill", d => d.color);
+
+            node.append("text")
+                .attr("x", 12)
+                .attr("y", 3)
+                .text(d => d.label);
+
+            // Add a legend
+            const legendData = [
+                { type: 'circle', color: 'lightblue', label: 'Input Neurons' },
+                { type: 'circle', color: 'lightpink', label: 'Output Neurons' },
+                { type: 'circle', color: 'lightgreen', label: 'Hidden Neurons' },
+                { type: 'line', stroke: 'green', label: 'Positive Connection' },
+                { type: 'line', stroke: 'red', label: 'Negative Connection' },
+                { type: 'line', stroke: '#666', dash: '0', label: 'Enabled Connection' },
+                { type: 'line', stroke: '#999', dash: '5,5', label: 'Disabled Connection' },
+            ];
+
+            const legend = svg.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${width - 200}, 20)`);
+
+            const legendSpacing = 20;
+
+            // Circles for neuron types
+            legend.selectAll("circle")
+                .data(legendData.filter(d => d.type === 'circle'))
+                .enter().append("circle")
+                .attr("cx", 15)
+                .attr("cy", (d, i) => i * legendSpacing)
+                .attr("r", 5)
+                .attr("fill", d => d.color);
+
+            // Lines for connection types
+            legend.selectAll("line")
+                .data(legendData.filter(d => d.type === 'line'))
+                .enter().append("line")
+                .attr("x1", 5)
+                .attr("x2", 25)
+                .attr("y1", (d, i) => i * legendSpacing + 60)
+                .attr("y2", (d, i) => i * legendSpacing + 60)
+                .attr("stroke", d => d.stroke)
+                .attr("stroke-dasharray", d => d.dash)
+                .attr("stroke-width", 2);
+
+            // Text labels for all legend items
+            legend.selectAll("text")
+                .data(legendData)
+                .enter().append("text")
+                .attr("x", 30)
+                .attr("y", (d, i) => i * legendSpacing + 5)
+                .text(d => d.label);
+
+            function ticked() {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+            }
+
+            simulation
+                .nodes(graph.nodes)
+                .on("tick", ticked);
+
+            simulation.force("link")
+                .links(graph.links);
+
+            // Run the simulation to fix the initial positions
+            for (let i = 0; i < 300; i++) {
+                simulation.tick();
+            }
+
+            ticked(); // Apply the final tick positions
+
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = d.x;
+                d.fy = d.y; // Keep fixed position after dragging
+            }
+        }
+    </script>
+</body>
+</html>
+

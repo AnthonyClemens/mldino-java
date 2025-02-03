@@ -154,21 +154,24 @@ public class Main implements Game{
             .filter(Dino::getAlive)
             .forEach(aiD -> {
                 float[] inputs = {
-                aiD.getRectangle().getY()-obstacle.getRect().getY(),
-                obstacle.getRect().getX()-aiD.getRectangle().getX(),
-                aiD.getV(),
+                calculateDistance(aiD.getRectangle().getX(),aiD.getRectangle().getY(),obstacle.getRect().getX(),obstacle.getRect().getY()),
+                obstacle.getObstacleType(),
                 track.getGameSpeed(),
             };
             float[] output = aiD.getGenome().evaluateNetwork(inputs);
-            aiD.AIjump(output[0]);
-            aiD.updateFitnessBasedOnJump(this.obstacle.getRect().getX());
+            aiD.aiDecision(output[0],output[1]);
+            aiD.updateFitnessBasedOnDecision(this.obstacle.getRect().getX(),this.obstacle.getRect().getY(),stats.getScore());
             });
+    }
+
+    public static float calculateDistance(float x1, float y1, float x2, float y2) {
+        return (float) Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
     }
 
     private void checkCollision(){
         dinos.stream()
             .filter(d -> d.getRectangle().intersects(obstacle.getRect()))
-            .forEach(d -> d.kill(track.getDistance()*2f - (d.getTotalJumps() * 0.1f)));
+            .forEach(d -> d.kill(track.getDistance()*100f - (d.getTotalJumps() * 0.01f)));
     }
 
     private void evolveNewGeneration(){
@@ -177,9 +180,10 @@ public class Main implements Game{
         System.out.println("Generation: "+stats.getGeneration());
         System.out.println("Best Genome Fitness: "+this.dinos.get(0).getFitness()+"\n");
         bestGenomeConnections = this.dinos.get(0).getGenome().getConnectionGeneList();
+        //System.out.println(bestGenomeConnections);
         if(stats.getScore()>this.bestScore){
             this.bestScore=stats.getScore();
-            this.dinos.get(0).getGenome().writeTofile("Generation"+stats.getGeneration());
+            this.dinos.get(0).getGenome().writeTofile("Generation"+stats.getGeneration()+"-"+this.bestScore);
             System.out.println("New High Score: "+this.bestScore+"\n");
         }
         stats.setConnectionGenes(bestGenomeConnections);

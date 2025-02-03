@@ -3,3 +3,5 @@
 /target/*
 Generation*
 Neuron*
+BestOne*
+!/visualizer/Generation*

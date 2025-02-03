@@ -208,22 +208,24 @@ public class Statistics {
             String neuronString = "H"+String.valueOf(neuronId-inputCount);
             switch (neuronId) {
                 case 0:
-                    neuronString="dY";
+                    neuronString="YX";
                     break;
                 case 1:
-                    neuronString="dX";
+                    neuronString="oT";
                     break;
                 case 2:
-                    neuronString="jV";
-                    break;
-                case 3:
                     neuronString="gS";
                     break;
+                //case 3:
+                    //neuronString="gS";
+                    //break;
                 default:
                     break;
             }
-            if(neuronId==outputNeuronIdx){
+            if(neuronId==1000002){
                 neuronString="Jump";
+            }else if(neuronId==1000003){
+                neuronString="Duck";
             }
             g.drawString(neuronString, pos.x - 5, pos.y - 5);
         }
